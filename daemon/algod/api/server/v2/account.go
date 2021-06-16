@@ -33,32 +33,40 @@ func AccountDataToAccount(
 	lastRound basics.Round, amountWithoutPendingRewards basics.MicroAlgos,
 ) (generated.Account, error) {
 
-	assets := make([]generated.AssetHolding, 0, len(record.Assets))
-	for curid, holding := range record.Assets {
-		// Empty is ok, asset may have been deleted, so we can no
-		// longer fetch the creator
-		creator := assetsCreators[curid]
-		holding := generated.AssetHolding{
-			Amount:   holding.Amount,
-			AssetId:  uint64(curid),
-			Creator:  creator,
-			IsFrozen: holding.Frozen,
+	var assets *[]generated.AssetHolding
+	if len(record.Assets) != 0 {
+		assetsValue := make([]generated.AssetHolding, 0, len(record.Assets))
+		for curid, holding := range record.Assets {
+			// Empty is ok, asset may have been deleted, so we can no
+			// longer fetch the creator
+			creator := assetsCreators[curid]
+			holding := generated.AssetHolding{
+				Amount:   holding.Amount,
+				AssetId:  uint64(curid),
+				Creator:  creator,
+				IsFrozen: holding.Frozen,
+			}
+
+			assetsValue = append(assetsValue, holding)
 		}
-
-		assets = append(assets, holding)
+		sort.Slice(assetsValue, func(i, j int) bool {
+			return assetsValue[i].AssetId < assetsValue[j].AssetId
+		})
+		assets = &assetsValue
 	}
-	sort.Slice(assets, func(i, j int) bool {
-		return assets[i].AssetId < assets[j].AssetId
-	})
 
-	createdAssets := make([]generated.Asset, 0, len(record.AssetParams))
-	for idx, params := range record.AssetParams {
-		asset := AssetParamsToAsset(address, idx, &params)
-		createdAssets = append(createdAssets, asset)
+	var createdAssets *[]generated.Asset
+	if len(record.AssetParams) != 0 {
+		createdAssetsValue := make([]generated.Asset, 0, len(record.AssetParams))
+		for idx, params := range record.AssetParams {
+			asset := AssetParamsToAsset(address, idx, &params)
+			createdAssetsValue = append(createdAssetsValue, asset)
+		}
+		sort.Slice(createdAssetsValue, func(i, j int) bool {
+			return createdAssetsValue[i].Index < createdAssetsValue[j].Index
+		})
+		createdAssets = &createdAssetsValue
 	}
-	sort.Slice(createdAssets, func(i, j int) bool {
-		return createdAssets[i].Index < createdAssets[j].Index
-	})
 
 	var apiParticipation *generated.AccountParticipation
 	if record.VoteID != (crypto.OneTimeSignatureVerifier{}) {
@@ -71,41 +79,62 @@ func AccountDataToAccount(
 		}
 	}
 
-	createdApps := make([]generated.Application, 0, len(record.AppParams))
-	for appIdx, appParams := range record.AppParams {
-		app := AppParamsToApplication(address, appIdx, &appParams)
-		createdApps = append(createdApps, app)
-	}
-	sort.Slice(createdApps, func(i, j int) bool {
-		return createdApps[i].Id < createdApps[j].Id
-	})
-
-	appsLocalState := make([]generated.ApplicationLocalState, 0, len(record.AppLocalStates))
-	for appIdx, state := range record.AppLocalStates {
-		localState := convertTKVToGenerated(&state.KeyValue)
-		appsLocalState = append(appsLocalState, generated.ApplicationLocalState{
-			Id:       uint64(appIdx),
-			KeyValue: localState,
-			Schema: generated.ApplicationStateSchema{
-				NumByteSlice: state.Schema.NumByteSlice,
-				NumUint:      state.Schema.NumUint,
-			},
+	var createdApps *[]generated.Application
+	if len(record.AppParams) != 0 {
+		createdAppsValue := make([]generated.Application, 0, len(record.AppParams))
+		for appIdx, appParams := range record.AppParams {
+			app := AppParamsToApplication(address, appIdx, &appParams)
+			createdAppsValue = append(createdAppsValue, app)
+		}
+		sort.Slice(createdAppsValue, func(i, j int) bool {
+			return createdAppsValue[i].Id < createdAppsValue[j].Id
 		})
+		createdApps = &createdAppsValue
 	}
-	sort.Slice(appsLocalState, func(i, j int) bool {
-		return appsLocalState[i].Id < appsLocalState[j].Id
-	})
 
-	totalAppSchema := generated.ApplicationStateSchema{
-		NumByteSlice: record.TotalAppSchema.NumByteSlice,
-		NumUint:      record.TotalAppSchema.NumUint,
+	var appsLocalState *[]generated.ApplicationLocalState
+	if len(record.AppLocalStates) != 0 {
+		appsLocalStateValue := make([]generated.ApplicationLocalState, 0, len(record.AppLocalStates))
+		for appIdx, state := range record.AppLocalStates {
+			localState := convertTKVToGenerated(&state.KeyValue)
+			appsLocalStateValue = append(appsLocalStateValue, generated.ApplicationLocalState{
+				Id:       uint64(appIdx),
+				KeyValue: localState,
+				Schema: generated.ApplicationStateSchema{
+					NumByteSlice: state.Schema.NumByteSlice,
+					NumUint:      state.Schema.NumUint,
+				},
+			})
+		}
+		sort.Slice(appsLocalStateValue, func(i, j int) bool {
+			return appsLocalStateValue[i].Id < appsLocalStateValue[j].Id
+		})
+		appsLocalState = &appsLocalStateValue
 	}
-	totalExtraPages := uint64(record.TotalExtraAppPages)
+
+	var totalAppSchema *generated.ApplicationStateSchema
+	if record.TotalAppSchema != (basics.StateSchema{}) {
+		totalAppSchema = &generated.ApplicationStateSchema{
+			NumByteSlice: record.TotalAppSchema.NumByteSlice,
+			NumUint:      record.TotalAppSchema.NumUint,
+		}
+	}
+
+	var totalExtraPages *uint64
+	if record.TotalExtraAppPages != 0 {
+		extraPages := uint64(record.TotalExtraAppPages)
+		totalExtraPages = &extraPages
+	}
 
 	amount := record.MicroAlgos
 	pendingRewards, overflowed := basics.OSubA(amount, amountWithoutPendingRewards)
 	if overflowed {
-		return generated.Account{}, errors.New("overflow on pending reward calcuation")
+		return generated.Account{}, errors.New("overflow on pending reward calculation")
+	}
+
+	var rewardsBase *uint64
+	if record.RewardsBase != 0 {
+		rewardsBase = &record.RewardsBase
 	}
 
 	return generated.Account{
@@ -117,15 +146,15 @@ func AccountDataToAccount(
 		AmountWithoutPendingRewards: amountWithoutPendingRewards.Raw,
 		Rewards:                     record.RewardedMicroAlgos.Raw,
 		Status:                      record.Status.String(),
-		RewardBase:                  &record.RewardsBase,
+		RewardBase:                  rewardsBase,
 		Participation:               apiParticipation,
-		CreatedAssets:               &createdAssets,
-		CreatedApps:                 &createdApps,
-		Assets:                      &assets,
+		CreatedAssets:               createdAssets,
+		CreatedApps:                 createdApps,
+		Assets:                      assets,
 		AuthAddr:                    addrOrNil(record.AuthAddr),
-		AppsLocalState:              &appsLocalState,
-		AppsTotalSchema:             &totalAppSchema,
-		AppsTotalExtraPages:         &totalExtraPages,
+		AppsLocalState:              appsLocalState,
+		AppsTotalSchema:             totalAppSchema,
+		AppsTotalExtraPages:         totalExtraPages,
 	}, nil
 }
 
