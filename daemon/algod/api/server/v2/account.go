@@ -215,74 +215,20 @@ func AccountToAccountData(a *generated.Account) (basics.AccountData, error) {
 	var assetParams map[basics.AssetIndex]basics.AssetParams
 	if a.CreatedAssets != nil && len(*a.CreatedAssets) > 0 {
 		assetParams = make(map[basics.AssetIndex]basics.AssetParams, len(*a.CreatedAssets))
-		var err error
 		for _, ca := range *a.CreatedAssets {
-			var metadataHash [32]byte
-			if ca.Params.MetadataHash != nil {
-				copy(metadataHash[:], *ca.Params.MetadataHash)
-			}
-			var manager, reserve, freeze, clawback basics.Address
-			if ca.Params.Manager != nil {
-				if manager, err = basics.UnmarshalChecksumAddress(*ca.Params.Manager); err != nil {
-					return basics.AccountData{}, err
-				}
-			}
-			if ca.Params.Reserve != nil {
-				if reserve, err = basics.UnmarshalChecksumAddress(*ca.Params.Reserve); err != nil {
-					return basics.AccountData{}, err
-				}
-			}
-			if ca.Params.Freeze != nil {
-				if freeze, err = basics.UnmarshalChecksumAddress(*ca.Params.Freeze); err != nil {
-					return basics.AccountData{}, err
-				}
-			}
-			if ca.Params.Clawback != nil {
-				if clawback, err = basics.UnmarshalChecksumAddress(*ca.Params.Clawback); err != nil {
-					return basics.AccountData{}, err
-				}
+			params, err := AssetToAssetParams(&ca)
+			if err != nil {
+				return basics.AccountData{}, err
 			}
 
-			var defaultFrozen bool
-			if ca.Params.DefaultFrozen != nil {
-				defaultFrozen = *ca.Params.DefaultFrozen
-			}
-			var url string
-			if ca.Params.Url != nil {
-				url = *ca.Params.Url
-			}
-			var unitName string
-			if ca.Params.UnitName != nil {
-				unitName = *ca.Params.UnitName
-			}
-			var name string
-			if ca.Params.Name != nil {
-				name = *ca.Params.Name
-			}
-
-			assetParams[basics.AssetIndex(ca.Index)] = basics.AssetParams{
-				Total:         ca.Params.Total,
-				Decimals:      uint32(ca.Params.Decimals),
-				DefaultFrozen: defaultFrozen,
-				UnitName:      unitName,
-				AssetName:     name,
-				URL:           url,
-				MetadataHash:  metadataHash,
-				Manager:       manager,
-				Reserve:       reserve,
-				Freeze:        freeze,
-				Clawback:      clawback,
-			}
+			assetParams[basics.AssetIndex(ca.Index)] = params
 		}
 	}
 	var assets map[basics.AssetIndex]basics.AssetHolding
 	if a.Assets != nil && len(*a.Assets) > 0 {
 		assets = make(map[basics.AssetIndex]basics.AssetHolding, len(*a.Assets))
 		for _, h := range *a.Assets {
-			assets[basics.AssetIndex(h.AssetId)] = basics.AssetHolding{
-				Amount: h.Amount,
-				Frozen: h.IsFrozen,
-			}
+			assets[basics.AssetIndex(h.AssetId)] = GeneratedAssetHoldingToAssetHolding(&h)
 		}
 	}
 
@@ -290,17 +236,11 @@ func AccountToAccountData(a *generated.Account) (basics.AccountData, error) {
 	if a.AppsLocalState != nil && len(*a.AppsLocalState) > 0 {
 		appLocalStates = make(map[basics.AppIndex]basics.AppLocalState, len(*a.AppsLocalState))
 		for _, ls := range *a.AppsLocalState {
-			kv, err := convertGeneratedTKV(ls.KeyValue)
+			converted, err := ApplicationLocalStateToAppLocalState(&ls)
 			if err != nil {
 				return basics.AccountData{}, err
 			}
-			appLocalStates[basics.AppIndex(ls.Id)] = basics.AppLocalState{
-				Schema: basics.StateSchema{
-					NumUint:      ls.Schema.NumUint,
-					NumByteSlice: ls.Schema.NumByteSlice,
-				},
-				KeyValue: kv,
-			}
+			appLocalStates[basics.AppIndex(ls.Id)] = converted
 		}
 	}
 
@@ -462,4 +402,85 @@ func AssetParamsToAsset(creator string, idx basics.AssetIndex, params *basics.As
 		Index:  uint64(idx),
 		Params: assetParams,
 	}
+}
+
+func AssetToAssetParams(ca *generated.Asset) (basics.AssetParams, error) {
+	var metadataHash [32]byte
+	if ca.Params.MetadataHash != nil {
+		copy(metadataHash[:], *ca.Params.MetadataHash)
+	}
+	var manager, reserve, freeze, clawback basics.Address
+	var err error
+	if ca.Params.Manager != nil {
+		if manager, err = basics.UnmarshalChecksumAddress(*ca.Params.Manager); err != nil {
+			return basics.AssetParams{}, err
+		}
+	}
+	if ca.Params.Reserve != nil {
+		if reserve, err = basics.UnmarshalChecksumAddress(*ca.Params.Reserve); err != nil {
+			return basics.AssetParams{}, err
+		}
+	}
+	if ca.Params.Freeze != nil {
+		if freeze, err = basics.UnmarshalChecksumAddress(*ca.Params.Freeze); err != nil {
+			return basics.AssetParams{}, err
+		}
+	}
+	if ca.Params.Clawback != nil {
+		if clawback, err = basics.UnmarshalChecksumAddress(*ca.Params.Clawback); err != nil {
+			return basics.AssetParams{}, err
+		}
+	}
+
+	var defaultFrozen bool
+	if ca.Params.DefaultFrozen != nil {
+		defaultFrozen = *ca.Params.DefaultFrozen
+	}
+	var url string
+	if ca.Params.Url != nil {
+		url = *ca.Params.Url
+	}
+	var unitName string
+	if ca.Params.UnitName != nil {
+		unitName = *ca.Params.UnitName
+	}
+	var name string
+	if ca.Params.Name != nil {
+		name = *ca.Params.Name
+	}
+
+	return basics.AssetParams{
+		Total:         ca.Params.Total,
+		Decimals:      uint32(ca.Params.Decimals),
+		DefaultFrozen: defaultFrozen,
+		UnitName:      unitName,
+		AssetName:     name,
+		URL:           url,
+		MetadataHash:  metadataHash,
+		Manager:       manager,
+		Reserve:       reserve,
+		Freeze:        freeze,
+		Clawback:      clawback,
+	}, nil
+}
+
+func GeneratedAssetHoldingToAssetHolding(h *generated.AssetHolding) basics.AssetHolding {
+	return basics.AssetHolding{
+		Amount: h.Amount,
+		Frozen: h.IsFrozen,
+	}
+}
+
+func ApplicationLocalStateToAppLocalState(ls *generated.ApplicationLocalState) (basics.AppLocalState, error) {
+	kv, err := convertGeneratedTKV(ls.KeyValue)
+	if err != nil {
+		return basics.AppLocalState{}, err
+	}
+	return basics.AppLocalState{
+		Schema: basics.StateSchema{
+			NumUint:      ls.Schema.NumUint,
+			NumByteSlice: ls.Schema.NumByteSlice,
+		},
+		KeyValue: kv,
+	}, nil
 }

@@ -40,6 +40,12 @@ type DebuggerHook interface {
 	Register(state *DebugState) error
 	// Update is fired on every step
 	Update(state *DebugState) error
+	// EnterInners is called before any inner txns are executed
+	EnterInners(ep *EvalParams) error
+	// InnerTxn is fired before every inner txn
+	InnerTxn(groupIndex int, ep *EvalParams) error
+	// LeaveInners is called after all inner txns are executed
+	LeaveInners(ep *EvalParams) error
 	// Complete is called when the program exits
 	Complete(state *DebugState) error
 }
