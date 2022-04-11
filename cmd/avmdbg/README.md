@@ -76,3 +76,6 @@ Here's an unordered list of improvements that would be nice to add to this debug
 
 * Source map support - the ability to specify source maps for app code so we can show something more
   informative than the decompiled TEAL binary.
+
+* LogicSig support - currently the debugger does not verify that a transaction is well formed or that
+  its signature is valid, and as a side effect of this, LogicSig programs are not evaluated.
