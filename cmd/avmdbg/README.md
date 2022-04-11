@@ -73,3 +73,6 @@ Here's an unordered list of improvements that would be nice to add to this debug
 
 * The TxIDs of inner txns are likely wrong - since inner transaction IDs are calculated in a slightly
   different way, the current TxIDs shown for inner txns are likely wrong, since they use `transactions.Transaction.ID()`.
+
+* Source map support - the ability to specify source maps for app code so we can show something more
+  informative than the decompiled TEAL binary.
