@@ -58,7 +58,7 @@ Here's an unordered list of improvements that would be nice to add to this debug
 * Breakpoints - the ability to set breakpoints on specific lines of code and specific transactions.
 
 * Step over & step out - the ability to skip the execution of deeper steps and the ability to jump
-  out of the current transaction group or TEAL program
+  out of the current transaction group or TEAL program.
 
 * Querying - one of the benefits of using a debugger like this is that you have the ability to ask
   complex question about the state of the world between operations. Currently this isn't implemented,
@@ -70,3 +70,6 @@ Here's an unordered list of improvements that would be nice to add to this debug
   it would be nice if you could make a "snapshot" of the chain and include this with your debugger
   input. That way, you'll be able to debug the same input with the same result regardless of whatever
   the latest version of the chain says.
+
+* The TxIDs of inner txns are likely wrong - since inner transaction IDs are calculated in a slightly
+  different way, the current TxIDs shown for inner txns are likely wrong, since they use `transactions.Transaction.ID()`.
