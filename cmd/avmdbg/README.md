@@ -66,8 +66,8 @@ Here's an unordered list of improvements that would be nice to add to this debug
   any point of the transaction group's execution.
 
 * Support/switch to a new model for resource loading - a big downside of the current resource loading
-  model is that your debug state is always dependent on the latest state of the blockchain. Instead,
-  it would be nice if you could make a "snapshot" of the chain and include this with your debugger
+  model is that your debugger experience is always dependent on the latest state of the blockchain.
+  Instead, it would be nice if you could make a "snapshot" of the chain and include this with your debugger
   input. That way, you'll be able to debug the same input with the same result regardless of whatever
   the latest version of the chain says.
 
