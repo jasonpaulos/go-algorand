@@ -38,13 +38,14 @@ var rootCmd = &cobra.Command{
 var flagTxnInputFile string
 var flagAlgodURL string
 var flagAlgodToken string
-var flagIgnoreTxnSignatures bool
+
+// var flagIgnoreTxnSignatures bool
 
 func init() {
 	rootCmd.Flags().StringVar(&flagTxnInputFile, "txns", "", "Path to transaction input file")
 	rootCmd.Flags().StringVar(&flagAlgodURL, "algod-url", "", "Address of algod node to connect to")
 	rootCmd.Flags().StringVar(&flagAlgodToken, "algod-token", "", "Token to use when connecting to algod node")
-	rootCmd.Flags().BoolVar(&flagIgnoreTxnSignatures, "ignore-signatures", false, "Do not validate transaction signatures")
+	// rootCmd.Flags().BoolVar(&flagIgnoreTxnSignatures, "ignore-signatures", false, "Do not validate transaction signatures")
 
 	rootCmd.MarkFlagRequired("txns")
 	rootCmd.MarkFlagRequired("algod-url")

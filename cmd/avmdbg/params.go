@@ -15,7 +15,7 @@ import (
 
 func makeDebuggerParams() (avmdbg.DebuggerParams, error) {
 	params := avmdbg.DebuggerParams{
-		CheckTxnSignatures: !flagIgnoreTxnSignatures,
+		// CheckTxnSignatures: !flagIgnoreTxnSignatures,
 	}
 
 	if flagTxnInputFile != "" {

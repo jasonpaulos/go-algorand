@@ -26,8 +26,8 @@ type AppParamsWithCreator struct {
 }
 
 type DebuggerParams struct {
-	InputTxns          []transactions.SignedTxn
-	CheckTxnSignatures bool
+	InputTxns []transactions.SignedTxn
+	// CheckTxnSignatures bool
 
 	AlgodClient algod.RestClient
 }
