@@ -507,8 +507,8 @@ type Local struct {
 	// from ledger caches and can control the ledger round.
 	EnableFollowMode bool `version[27]:"false"`
 
-	// EnableTransactionSimulator enables the /v2/transaction/simulate endpoint. This functionality
-	// is enabled by default.
+	// EnableTransactionSimulator enables the /v2/transaction/simulate endpoint.
+	// This is enabled by default, but disabled on relay nodes.
 	EnableTransactionSimulator bool `version[27]:"true"`
 }
 
