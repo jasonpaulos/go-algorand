@@ -508,8 +508,8 @@ type Local struct {
 	EnableFollowMode bool `version[27]:"false"`
 
 	// EnableTransactionSimulator enables the /v2/transaction/simulate endpoint. This functionality
-	// is disabled by default.
-	EnableTransactionSimulator bool `version[27]:"false"`
+	// is enabled by default.
+	EnableTransactionSimulator bool `version[27]:"true"`
 }
 
 // DNSBootstrapArray returns an array of one or more DNS Bootstrap identifiers
