@@ -37,10 +37,10 @@ import (
 	"github.com/algorand/go-algorand/data/bookkeeping"
 	"github.com/algorand/go-algorand/data/transactions"
 	"github.com/algorand/go-algorand/data/transactions/logic"
-	"github.com/algorand/go-algorand/ledger/internal"
+	"github.com/algorand/go-algorand/ledger/eval"
 	"github.com/algorand/go-algorand/ledger/ledgercore"
-	"github.com/algorand/go-algorand/ledger/store"
 	"github.com/algorand/go-algorand/ledger/store/blockdb"
+	"github.com/algorand/go-algorand/ledger/store/trackerdb"
 	"github.com/algorand/go-algorand/logging"
 	"github.com/algorand/go-algorand/protocol"
 	"github.com/algorand/go-algorand/test/partitiontest"
@@ -68,7 +68,7 @@ func (wl *wrappedLedger) BlockHdr(rnd basics.Round) (bookkeeping.BlockHeader, er
 	return wl.l.BlockHdr(rnd)
 }
 
-func (wl *wrappedLedger) trackerEvalVerified(blk bookkeeping.Block, accUpdatesLedger internal.LedgerForEvaluator) (ledgercore.StateDelta, error) {
+func (wl *wrappedLedger) trackerEvalVerified(blk bookkeeping.Block, accUpdatesLedger eval.LedgerForEvaluator) (ledgercore.StateDelta, error) {
 	return wl.l.trackerEvalVerified(blk, accUpdatesLedger)
 }
 
@@ -76,7 +76,7 @@ func (wl *wrappedLedger) Latest() basics.Round {
 	return wl.l.Latest()
 }
 
-func (wl *wrappedLedger) trackerDB() store.TrackerStore {
+func (wl *wrappedLedger) trackerDB() trackerdb.TrackerStore {
 	return wl.l.trackerDB()
 }
 

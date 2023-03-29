@@ -33,10 +33,11 @@ import (
 	"github.com/algorand/go-algorand/data/transactions"
 	"github.com/algorand/go-algorand/data/transactions/verify"
 	"github.com/algorand/go-algorand/ledger/apply"
-	"github.com/algorand/go-algorand/ledger/internal"
+	"github.com/algorand/go-algorand/ledger/eval"
 	"github.com/algorand/go-algorand/ledger/ledgercore"
-	"github.com/algorand/go-algorand/ledger/store"
 	"github.com/algorand/go-algorand/ledger/store/blockdb"
+	"github.com/algorand/go-algorand/ledger/store/trackerdb"
+	"github.com/algorand/go-algorand/ledger/store/trackerdb/sqlitedriver"
 	"github.com/algorand/go-algorand/logging"
 	"github.com/algorand/go-algorand/protocol"
 	"github.com/algorand/go-algorand/util/db"
@@ -49,7 +50,7 @@ type Ledger struct {
 	// Database connections to the DBs storing blocks and tracker state.
 	// We use potentially different databases to avoid SQLite contention
 	// during catchup.
-	trackerDBs store.TrackerStore
+	trackerDBs trackerdb.TrackerStore
 	blockDBs   db.Pair
 
 	// blockQ is the buffer of added blocks that will be flushed to
@@ -273,7 +274,7 @@ func (l *Ledger) verifyMatchingGenesisHash() (err error) {
 	return
 }
 
-func openLedgerDB(dbPathPrefix string, dbMem bool) (trackerDBs store.TrackerStore, blockDBs db.Pair, err error) {
+func openLedgerDB(dbPathPrefix string, dbMem bool) (trackerDBs trackerdb.TrackerStore, blockDBs db.Pair, err error) {
 	// Backwards compatibility: we used to store both blocks and tracker
 	// state in a single SQLite db file.
 	var trackerDBFilename string
@@ -297,7 +298,7 @@ func openLedgerDB(dbPathPrefix string, dbMem bool) (trackerDBs store.TrackerStor
 	outErr := make(chan error, 2)
 	go func() {
 		var lerr error
-		trackerDBs, lerr = store.OpenTrackerSQLStore(trackerDBFilename, dbMem)
+		trackerDBs, lerr = sqlitedriver.OpenTrackerSQLStore(trackerDBFilename, dbMem)
 		outErr <- lerr
 	}()
 
@@ -654,7 +655,7 @@ func (l *Ledger) BlockCert(rnd basics.Round) (blk bookkeeping.Block, cert agreem
 func (l *Ledger) AddBlock(blk bookkeeping.Block, cert agreement.Certificate) error {
 	// passing nil as the executionPool is ok since we've asking the evaluator to skip verification.
 
-	updates, err := internal.Eval(context.Background(), l, blk, false, l.verifiedTxnCache, nil)
+	updates, err := eval.Eval(context.Background(), l, blk, false, l.verifiedTxnCache, nil)
 	if err != nil {
 		if errNSBE, ok := err.(ledgercore.ErrNonSequentialBlockEval); ok && errNSBE.EvaluatorRound <= errNSBE.LatestRound {
 			return ledgercore.BlockInLedgerError{
@@ -765,7 +766,7 @@ func (l *Ledger) GetCatchpointStream(round basics.Round) (ReadCloseSizer, error)
 }
 
 // ledgerForTracker methods
-func (l *Ledger) trackerDB() store.TrackerStore {
+func (l *Ledger) trackerDB() trackerdb.TrackerStore {
 	return l.trackerDBs
 }
 
@@ -781,9 +782,9 @@ func (l *Ledger) trackerLog() logging.Logger {
 // trackerEvalVerified is used by the accountUpdates to reconstruct the ledgercore.StateDelta from a given block during it's loadFromDisk execution.
 // when this function is called, the trackers mutex is expected already to be taken. The provided accUpdatesLedger would allow the
 // evaluator to shortcut the "main" ledger ( i.e. this struct ) and avoid taking the trackers lock a second time.
-func (l *Ledger) trackerEvalVerified(blk bookkeeping.Block, accUpdatesLedger internal.LedgerForEvaluator) (ledgercore.StateDelta, error) {
+func (l *Ledger) trackerEvalVerified(blk bookkeeping.Block, accUpdatesLedger eval.LedgerForEvaluator) (ledgercore.StateDelta, error) {
 	// passing nil as the executionPool is ok since we've asking the evaluator to skip verification.
-	return internal.Eval(context.Background(), accUpdatesLedger, blk, false, l.verifiedTxnCache, nil)
+	return eval.Eval(context.Background(), accUpdatesLedger, blk, false, l.verifiedTxnCache, nil)
 }
 
 // IsWritingCatchpointDataFile returns true when a catchpoint file is being generated.
@@ -807,9 +808,9 @@ func (l *Ledger) VerifiedTransactionCache() verify.VerifiedTransactionCache {
 // provides a cap on the size of a single generated block size, when a non-zero value is passed.
 // If a value of zero or less is passed to maxTxnBytesPerBlock, the consensus MaxTxnBytesPerBlock would
 // be used instead.
-func (l *Ledger) StartEvaluator(hdr bookkeeping.BlockHeader, paysetHint, maxTxnBytesPerBlock int) (*internal.BlockEvaluator, error) {
-	return internal.StartEvaluator(l, hdr,
-		internal.EvaluatorOptions{
+func (l *Ledger) StartEvaluator(hdr bookkeeping.BlockHeader, paysetHint, maxTxnBytesPerBlock int) (*eval.BlockEvaluator, error) {
+	return eval.StartEvaluator(l, hdr,
+		eval.EvaluatorOptions{
 			PaysetHint:          paysetHint,
 			Generate:            true,
 			Validate:            true,
@@ -827,7 +828,7 @@ func (l *Ledger) FlushCaches() {
 // not a valid block (e.g., it has duplicate transactions, overspends some
 // account, etc).
 func (l *Ledger) Validate(ctx context.Context, blk bookkeeping.Block, executionPool execpool.BacklogPool) (*ledgercore.ValidatedBlock, error) {
-	delta, err := internal.Eval(ctx, l, blk, true, l.verifiedTxnCache, executionPool)
+	delta, err := eval.Eval(ctx, l, blk, true, l.verifiedTxnCache, executionPool)
 	if err != nil {
 		return nil, err
 	}
@@ -837,11 +838,11 @@ func (l *Ledger) Validate(ctx context.Context, blk bookkeeping.Block, executionP
 }
 
 // DebuggerLedger defines the minimal set of method required for creating a debug balances.
-type DebuggerLedger = internal.LedgerForCowBase
+type DebuggerLedger = eval.LedgerForCowBase
 
 // MakeDebugBalances creates a ledger suitable for dryrun and debugger
 func MakeDebugBalances(l DebuggerLedger, round basics.Round, proto protocol.ConsensusVersion, prevTimestamp int64) apply.Balances {
-	return internal.MakeDebugBalances(l, round, proto, prevTimestamp)
+	return eval.MakeDebugBalances(l, round, proto, prevTimestamp)
 }
 
 var ledgerInitblocksdbCount = metrics.NewCounter("ledger_initblocksdb_count", "calls")
