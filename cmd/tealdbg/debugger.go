@@ -364,7 +364,7 @@ func (s *session) GetSourceMap() ([]byte, error) {
 	lines := make([]string, len(s.lines))
 	const targetCol int = 0
 	const sourceIdx int = 0
-	prevSourceLine := 0
+	prevLoc := logic.SourceLocation{Line: 0, Column: 0}
 
 	// the very first entry is needed by CDT
 	lines[0] = logic.MakeSourceMapLine(targetCol, sourceIdx, 0, 0)
@@ -374,16 +374,17 @@ func (s *session) GetSourceMap() ([]byte, error) {
 			if !ok {
 				lines[targetLine] = ""
 			} else {
-				lines[targetLine] = logic.MakeSourceMapLine(targetCol, sourceIdx, source.Line-prevSourceLine, source.Column)
-				prevSourceLine = source.Line
+				lines[targetLine] = logic.MakeSourceMapLine(targetCol, sourceIdx, source.Line-prevLoc.Line, source.Column-prevLoc.Column)
+				prevLoc = source
 			}
 		} else {
-			delta := 0
+			ldelta, cdelta := 0, 0
 			// the very last empty line, increment by number src number by 1
 			if targetLine == len(s.lines)-1 {
-				delta = 1
+				ldelta = 1
+				cdelta = -prevLoc.Column
 			}
-			lines[targetLine] = logic.MakeSourceMapLine(targetCol, sourceIdx, delta, 0)
+			lines[targetLine] = logic.MakeSourceMapLine(targetCol, sourceIdx, ldelta, cdelta)
 		}
 	}
 
