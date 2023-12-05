@@ -77,7 +77,7 @@ func (n *streamManager) streamHandler(stream network.Stream) {
 			return
 		}
 		// otherwise, the old stream is still open, so we can close the new one
-		stream.Close()
+		stream.Close() // Question: can stream ever == n.streams[remotePeer]?
 		return
 	}
 	// no old stream
@@ -109,7 +109,7 @@ func (n *streamManager) Connected(net network.Network, conn network.Conn) {
 	}
 
 	n.streams[remotePeer] = stream
-	n.handler(n.ctx, remotePeer, stream, false)
+	n.handler(n.ctx, remotePeer, stream, false) // Note to self: confirm the logic behind the "incoming" bool holds up
 }
 
 // Disconnected is called when a connection is closed

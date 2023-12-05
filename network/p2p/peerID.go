@@ -37,7 +37,7 @@ import (
 const DefaultPrivKeyPath = "peerIDPrivKey.pem"
 
 // PeerID is a string representation of a peer's public key, primarily used to avoid importing libp2p into packages that shouldn't need it
-type PeerID string
+type PeerID string // This seems unnecessary? Importing libp2p does not seem like an issue, unless we want to abstract away/hide the library
 
 // GetPrivKey manages loading and creation of private keys for network PeerIDs
 // It prioritizes, in this order:

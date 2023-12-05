@@ -29,7 +29,7 @@ func PeerInfoFromAddrs(addrs []string) ([]*peer.AddrInfo, map[string]string) {
 	var addrInfo []*peer.AddrInfo
 	malformedAddrs := make(map[string]string)
 	for _, addr := range addrs {
-		info, err := PeerInfoFromAddr(addr)
+		info, err := PeerInfoFromAddr(addr) // Should this function consolidate the AddrInfos if the same peer ID is present?
 		// track malformed addresses
 		if err != nil {
 			malformedAddrs[addr] = err.Error()
@@ -41,7 +41,7 @@ func PeerInfoFromAddrs(addrs []string) ([]*peer.AddrInfo, map[string]string) {
 }
 
 // PeerInfoFromAddr extracts the AddrInfo from a multiaddr string.
-func PeerInfoFromAddr(addr string) (*peer.AddrInfo, error) {
+func PeerInfoFromAddr(addr string) (*peer.AddrInfo, error) { // nit: this is the same as peer.AddrInfoFromString
 	maddr, err := multiaddr.NewMultiaddr(addr)
 	if err != nil {
 		return nil, err

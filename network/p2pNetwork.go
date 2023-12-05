@@ -156,7 +156,7 @@ func (n *P2PNetwork) Start() {
 	n.wsPeersConnectivityCheckTicker = time.NewTicker(connectionActivityMonitorInterval)
 	for i := 0; i < incomingThreads; i++ {
 		n.wg.Add(1)
-		// We pass the peersConnectivityCheckTicker.C here so that we don't need to syncronize the access to the ticker's data structure.
+		// We pass the peersConnectivityCheckTicker.C here so that we don't need to synchronize the access to the ticker's data structure.
 		go n.handler.messageHandlerThread(&n.wg, n.wsPeersConnectivityCheckTicker.C, n)
 	}
 
@@ -361,13 +361,13 @@ func (n *P2PNetwork) wsStreamHandler(ctx context.Context, peer peer.ID, stream n
 
 	if incoming {
 		var initMsg [1]byte
-		rn, err := stream.Read(initMsg[:])
+		rn, err := stream.Read(initMsg[:]) // Should we have a timeout here? What if the peer never sends the initial message?
 		if rn == 0 || err != nil {
 			n.log.Warnf("wsStreamHandler: error reading initial message: %s", err)
 			return
 		}
 	} else {
-		_, err := stream.Write([]byte("1"))
+		_, err := stream.Write([]byte("1")) // Same question as above: should we have a timeout here?
 		if err != nil {
 			n.log.Warnf("wsStreamHandler: error sending initial message: %s", err)
 			return

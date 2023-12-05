@@ -99,12 +99,15 @@ func makeHost(cfg config.Local, datadir string, pstore peerstore.Peerstore) (hos
 	return libp2p.New(
 		libp2p.Identity(privKey),
 		libp2p.UserAgent(ua),
-		libp2p.Transport(tcp.NewTCPTransport),
+		libp2p.Transport(tcp.NewTCPTransport), // Why not also enable QUIC and/or WebSockets? libp2p has a "smart dialing" which prioritizes QUIC over TCP: https://github.com/libp2p/go-libp2p/pull/2260
 		libp2p.Muxer("/yamux/1.0.0", &ymx),
 		libp2p.Peerstore(pstore),
 		libp2p.ListenAddrStrings(listenAddr),
 		libp2p.Security(noise.ID, noise.New),
 	)
+	// TODO: enable libp2p metrics?
+
+	// General comment: libp2p uses this logger: github.com/ipfs/go-log/v2, can/should we route this to a log file?
 }
 
 // MakeService creates a P2P service instance
@@ -155,7 +158,8 @@ func (s *serviceImpl) DialPeersUntilTargetCount(targetConnCount int) {
 	peerIDs := s.host.Peerstore().Peers()
 	for _, peerID := range peerIDs {
 		// if we are at our target count stop trying to connect
-		if len(s.host.Network().Conns()) == targetConnCount {
+		if len(s.host.Network().Conns()) == targetConnCount { // The caller does not check if more connections are needed. Should use >= to avoid exceeding target connection count.
+			// Additionally, right now this counts connections, nor peers. A peer may have multiple connections (though I don't yet understand in practice how this would happen yet), so this may not be the best way to count.
 			return
 		}
 		// if we are already connected to this peer, skip it
@@ -164,6 +168,8 @@ func (s *serviceImpl) DialPeersUntilTargetCount(targetConnCount int) {
 		}
 		peerInfo := s.host.Peerstore().PeerInfo(peerID)
 		err := s.DialNode(context.Background(), &peerInfo) // leaving the calls as blocking for now, to not over-connect beyond fanout
+		// s.DialNode invokes s.host.Connect, which injects the addrs from peerInfo into the peerstore. This is unnecessary and can cause the peerstore to increase TTL for these addresses unnecessarily.
+		// Suggested solution: either use s.host.Network().DialPeer (which only takes a peer ID), or pass an AddrInfo with no addrs to s.DialNode
 		if err != nil {
 			s.log.Warnf("failed to connect to peer %s: %v", peerID, err)
 		}
