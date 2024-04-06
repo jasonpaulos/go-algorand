@@ -1067,8 +1067,8 @@ type AccountApplicationResponse struct {
 	Round uint64 `json:"round"`
 }
 
-// AccountAssetHoldingsResponse defines model for AccountAssetHoldingsResponse.
-type AccountAssetHoldingsResponse struct {
+// AccountAssetsInformationResponse defines model for AccountAssetsInformationResponse.
+type AccountAssetsInformationResponse struct {
 	AssetHoldings *[]AccountAssetHolding `json:"asset-holdings,omitempty"`
 
 	// NextToken Used for pagination, when making another request provide this token with the next parameter.
