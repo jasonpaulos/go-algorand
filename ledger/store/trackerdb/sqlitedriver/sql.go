@@ -19,6 +19,8 @@ package sqlitedriver
 import (
 	"database/sql"
 	"fmt"
+	"strings"
+
 	"github.com/algorand/go-algorand/data/basics"
 	"github.com/algorand/go-algorand/ledger/ledgercore"
 	"github.com/algorand/go-algorand/ledger/store/trackerdb"
@@ -90,7 +92,11 @@ func AccountsInitDbQueries(q db.Queryable) (*accountsDbQueries, error) {
 	qs.lookupLimitedResourcesStmt, err = q.Prepare("SELECT ab.rowid, ar.rnd, r.aidx, ac.creator, r.data, cr.data FROM acctrounds ar JOIN accountbase ab ON ab.address = ? JOIN resources r ON r.addrid = ab.addrid LEFT JOIN assetcreators ac ON r.aidx = ac.asset LEFT JOIN " +
 		"accountbase cab ON ac.creator = cab.address LEFT JOIN resources cr ON cr.addrid = cab.addrid AND cr.aidx = r.aidx WHERE ar.id = 'acctbase' AND r.ctype = ? AND r.aidx > ? ORDER BY r.aidx ASC LIMIT ?")
 	if err != nil {
-		return nil, err
+		if strings.Contains(err.Error(), "no such column: r.ctype") {
+			// We are running on an old database schema, don't propagate error
+		} else {
+			return nil, err
+		}
 	}
 
 	qs.lookupKvPairStmt, err = q.Prepare("SELECT acctrounds.rnd, kvstore.key, kvstore.value FROM acctrounds LEFT JOIN kvstore ON key = ? WHERE id='acctbase';")
@@ -428,6 +434,9 @@ func (qs *accountsDbQueries) LookupAllResources(addr basics.Address) (data []tra
 }
 
 func (qs *accountsDbQueries) LookupLimitedResources(addr basics.Address, minIdx basics.CreatableIndex, maxCreatables uint64, ctype basics.CreatableType) (data []trackerdb.PersistedResourcesDataWithCreator, rnd basics.Round, err error) {
+	if qs.lookupLimitedResourcesStmt == nil {
+		return nil, 0, fmt.Errorf("lookupLimitedResourcesStmt is not supported by the database")
+	}
 	err = db.Retry(func() error {
 		rows, err0 := qs.lookupLimitedResourcesStmt.Query(addr[:], ctype, minIdx, maxCreatables)
 		if err0 != nil {
@@ -626,10 +635,13 @@ func (qs *accountsDbQueries) Close() {
 		&qs.lookupAccountStmt,
 		&qs.lookupResourcesStmt,
 		&qs.lookupAllResourcesStmt,
-		&qs.lookupLimitedResourcesStmt,
 		&qs.lookupKvPairStmt,
 		&qs.lookupKeysByRangeStmt,
 		&qs.lookupCreatorStmt,
+		&qs.lookupLimitedResourcesStmt,
+	}
+	if qs.lookupLimitedResourcesStmt == nil {
+		preparedQueries = preparedQueries[:len(preparedQueries)-1]
 	}
 	for _, preparedQuery := range preparedQueries {
 		if (*preparedQuery) != nil {
